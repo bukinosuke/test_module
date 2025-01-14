@@ -15,7 +15,9 @@ if lib == nil then
 
         int fn_name1(int a, int b);
         uint32_t fn_name2(const uint32_t* args, size_t len);
+
         VecResult fn_name3(const uint32_t* args, size_t len);
+        void free_name3(const uint32_t* ptr, size_t len);
         
         char* fn_name4(const char* str);
         void free_string(char* ptr);
@@ -52,7 +54,9 @@ local output3 = {}
 for i = 0, tonumber(fn_name3.len) - 1 do
     table.insert(output3, fn_name3.ptr[i])
 end
+-- ポインタのメモリ領域を解放
 print(output3)
+lib.free_name3(fn_name3.ptr, fn_name3.len)
 -- テーブルを文字列にして可視化
 local output3_string = ""
 for i, value in ipairs(output3) do
