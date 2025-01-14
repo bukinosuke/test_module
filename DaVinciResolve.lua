@@ -8,11 +8,24 @@ if lib == nil then
             size_t len;
         } VecResult;
 
+        typedef struct {
+            const char** ptr;
+            size_t len;
+        } StringArrayResult;
+
         int fn_name1(int a, int b);
         uint32_t fn_name2(const uint32_t* args, size_t len);
         VecResult fn_name3(const uint32_t* args, size_t len);
+        
         char* fn_name4(const char* str);
         void free_string(char* ptr);
+
+        StringArrayResult fn_name5(
+        const char** input,
+        size_t len
+        );
+        void free_string_array(StringArrayResult result);
+
     ]]
 
     -- DLLの読み込み
@@ -53,6 +66,18 @@ local fn_name4 = lib.fn_name4(str)
 -- ポインタから文字列を取得
 local output4 = ffi.string(fn_name4)
 print(output4)
-
 -- fn_name4で作成した文字列のメモリをモジュール内から解放
 lib.free_string(fn_name4)
+
+-- モジュール関数に文字列配列を渡し、文字列配列を受け取る
+local input = ffi.new("const char*[3]", { "hello", "world", "lua" })
+local fn_name5 = lib.fn_name5(input, 3)
+-- 結果をLuaのテーブルに変換
+local output5 = {}
+for i = 0, tonumber(fn_name5.len) - 1 do
+    table.insert(output5, ffi.string(fn_name5.ptr[i]))
+end
+-- 出力を表示
+print(table.unpack(output5))
+-- fn_name5で作成した文字列配列のメモリをモジュール内から解放
+lib.free_string_array(fn_name5)

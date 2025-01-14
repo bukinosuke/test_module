@@ -12,6 +12,13 @@ pub struct VecResult {
     len: usize,      // データの長さ
 }
 
+// fn_name4()で返す構造体
+#[repr(C)]
+pub struct StringArrayResult {
+    ptr: *const *mut c_char, // 文字列ポインタの配列
+    len: usize,              // 配列の長さ
+}
+
 // 受け取った値を足して返す関数
 #[no_mangle]
 pub extern "C" fn fn_name1(a: i32, b: i32) -> i32 {
@@ -42,6 +49,9 @@ pub extern "C" fn fn_name3(args: *const u32, len: usize) -> VecResult {
     let global_vec = GLOBAL_VEC.get_or_init(|| Mutex::new(Vec::new()));
     // 共有変数をロック
     let mut vec = global_vec.lock().unwrap();
+
+    // 古いデータをクリア（メモリリーク対策）
+    vec.clear();
 
     // 配列の値を倍にし、配列の末尾に追加
     let mut value = Vec::new();
@@ -95,4 +105,86 @@ pub extern "C" fn free_string(ptr: *mut c_char) {
     }
     // メモリを解放
     let _ = unsafe { CString::from_raw(ptr) };
+}
+
+// 引数で受け取った文字列配列を処理し、新しい文字列配列を返す関数
+#[no_mangle]
+pub extern "C" fn fn_name5(
+    input: *const *const c_char, // 入力文字列ポインタの配列
+    len: usize,                  // 配列の長さ
+) -> StringArrayResult {
+    // NULLチェック
+    if input.is_null() {
+        return StringArrayResult {
+            ptr: std::ptr::null(),
+            len: 0,
+        };
+    }
+
+    // Rust側でスライスとして扱う
+    let input_slice = unsafe { std::slice::from_raw_parts(input, len) };
+
+    // 結果用のVecを作成
+    let mut result_vec = Vec::new();
+
+    for &c_str_ptr in input_slice.iter() {
+        if c_str_ptr.is_null() {
+            continue; // NULLポインタをスキップ
+        }
+
+        // C文字列をRust文字列に変換
+        let rust_str = unsafe {
+            match CStr::from_ptr(c_str_ptr).to_str() {
+                Ok(s) => s,
+                Err(_) => continue, // エンコーディングエラーをスキップ
+            }
+        };
+
+        // 処理（例: 文字列を大文字化）
+        let processed_str = rust_str.to_uppercase();
+
+        // CStringに変換
+        if let Ok(c_string) = CString::new(processed_str) {
+            result_vec.push(c_string);
+        }
+    }
+
+    // 結果をC互換のポインタ配列に変換
+    let result_ptrs: Vec<*mut c_char> = result_vec
+        .iter()
+        .map(|s| s.as_ptr() as *mut c_char)
+        .collect();
+
+    // メモリリークを防ぐため、Vecの所有権を切り離す
+    std::mem::forget(result_vec);
+
+    // 結果を構造体に詰めて返す
+    StringArrayResult {
+        ptr: result_ptrs.as_ptr(),
+        len: result_ptrs.len(),
+    }
+}
+
+// ↑で作成した値をメモリから解放(メモリリーク対策、共有変数を使用しない場合)
+#[no_mangle]
+pub extern "C" fn free_string_array(result: StringArrayResult) {
+    // 安全にポインタ配列をスライスとして扱う
+    if result.ptr.is_null() {
+        return;
+    }
+    let slice = unsafe { std::slice::from_raw_parts(result.ptr, result.len) };
+
+    // 各ポインタをCString::from_rawで解放
+    for &ptr in slice.iter() {
+        if !ptr.is_null() {
+            unsafe {
+                let _ = CString::from_raw(ptr as *mut c_char); // メモリを解放
+            }
+        }
+    }
+
+    // 配列自体を解放
+    unsafe {
+        let _ = Vec::from_raw_parts(result.ptr as *mut *mut c_char, result.len, result.len);
+    }
 }
