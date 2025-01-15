@@ -1,4 +1,3 @@
-use std::alloc::{alloc, dealloc, Layout};
 use std::sync::{Mutex, OnceLock};
 
 // グローバル変数の初期化
@@ -15,6 +14,15 @@ pub struct VecResult {
 // 配列を受け取り、グローバル変数に追加して返す関数
 #[no_mangle]
 pub extern "C" fn fn_name3(args: *const u32, len: usize) -> VecResult {
+    // 引数が不正だった場合
+    if args.is_null() || len == 0 {
+        return VecResult {
+            ptr: std::ptr::null_mut(),
+            len: 0,
+            success: false,
+        };
+    }
+
     // 引数のスライスを作成
     let slice = unsafe { std::slice::from_raw_parts(args, len) };
 
@@ -46,25 +54,18 @@ pub extern "C" fn fn_name3(args: *const u32, len: usize) -> VecResult {
     // グローバル変数のロック解除
     drop(vec);
 
-    // メモリを確保してデータをコピー
-    let total_len = new_value.len();
-    let layout = Layout::array::<u32>(total_len).unwrap();
-    let ptr = unsafe { alloc(layout) as *mut u32 };
-    if ptr.is_null() {
-        return VecResult {
-            ptr: std::ptr::null_mut(),
-            len: 0,
-            success: false,
-        };
-    }
-    unsafe {
-        ptr.copy_from_nonoverlapping(new_value.as_ptr(), total_len);
-    }
+    // データをボックス化
+    let boxed_slice = new_value.into_boxed_slice();
+    let ptr = boxed_slice.as_ptr() as *mut u32;
+    let len = boxed_slice.len();
+    
+    // データをRustの管理外に
+    std::mem::forget(boxed_slice);
 
     // 構造体を返す
     VecResult {
-        ptr: ptr,
-        len: total_len,
+        ptr,
+        len,
         success: true,
     }
 }
@@ -73,9 +74,8 @@ pub extern "C" fn fn_name3(args: *const u32, len: usize) -> VecResult {
 #[no_mangle]
 pub extern "C" fn free_fn_name3(ptr: *mut u32, len: usize) {
     if !ptr.is_null() && len > 0 {
-        let layout = Layout::array::<u32>(len).unwrap();
         unsafe {
-            dealloc(ptr as *mut u8, layout);
+            let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len));
         }
     }
 }
