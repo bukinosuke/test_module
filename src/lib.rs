@@ -8,7 +8,7 @@ static GLOBAL_VEC: OnceLock<Mutex<Vec<u32>>> = OnceLock::new();
 pub struct VecResult {
     ptr: *mut u32, // データのポインタ
     len: usize,    // データの長さ
-    success: bool, // エラー
+    success: u8,   // エラー
 }
 
 // 配列を受け取り、グローバル変数に追加して返す関数
@@ -19,7 +19,7 @@ pub extern "C" fn fn_name3(args: *const u32, len: usize) -> VecResult {
         return VecResult {
             ptr: std::ptr::null_mut(),
             len: 0,
-            success: false,
+            success: 1,
         };
     }
 
@@ -37,7 +37,7 @@ pub extern "C" fn fn_name3(args: *const u32, len: usize) -> VecResult {
             return VecResult {
                 ptr: std::ptr::null_mut(),
                 len: 0,
-                success: false,
+                success: 2,
             };
         }
     };
@@ -46,10 +46,7 @@ pub extern "C" fn fn_name3(args: *const u32, len: usize) -> VecResult {
     vec.extend_from_slice(slice);
 
     // 新しい値を作成
-    let mut new_value = Vec::new();
-    for u in vec.iter() {
-        new_value.push(*u * 5);
-    }
+    let new_value: Vec<u32> = vec.iter().map(|&u| u * 5).collect();
 
     // グローバル変数のロック解除
     drop(vec);
@@ -58,7 +55,7 @@ pub extern "C" fn fn_name3(args: *const u32, len: usize) -> VecResult {
     let boxed_slice = new_value.into_boxed_slice();
     let ptr = boxed_slice.as_ptr() as *mut u32;
     let len = boxed_slice.len();
-    
+
     // データをRustの管理外に
     std::mem::forget(boxed_slice);
 
@@ -66,7 +63,7 @@ pub extern "C" fn fn_name3(args: *const u32, len: usize) -> VecResult {
     VecResult {
         ptr,
         len,
-        success: true,
+        success: 0,
     }
 }
 

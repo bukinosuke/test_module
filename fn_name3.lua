@@ -5,7 +5,7 @@ if lib == nil then
     typedef struct {
       uint32_t *ptr;
       size_t len;
-      bool success;
+      uint8_t success;
     } VecResult;
     VecResult fn_name3(const uint32_t *args, size_t len);
     void free_fn_name3(uint32_t *ptr, size_t len);
@@ -24,7 +24,8 @@ local input = ffi.new(type, value)
 -- Rust関数を呼び出す
 local result = lib.fn_name3(input, #value)
 
-if result.success then
+-- 成否判定
+if result.success == 0 then
   -- 返ってきた値をテーブル化
   local result_table = {}
   for i = 0, tonumber(result.len) - 1 do
@@ -38,7 +39,11 @@ if result.success then
 
   -- メモリを解放
   lib.free_fn_name3(result.ptr, result.len)
-
 else
-  print("Error: Failed to execute fn_name3")
+  -- エラー表示
+  if result.success == 1 then
+    print("Error: 引数が不正です。")
+  elseif result.success == 2 then
+    print("Error: GLOBAL_VECのロックに失敗しました。")
+  end
 end
