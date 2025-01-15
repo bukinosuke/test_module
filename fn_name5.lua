@@ -1,14 +1,15 @@
 if lib == nil then
   ffi = require("ffi")
 
+  -- 構造体の定義、関数の定義、ポインタ解放関数の定義
   ffi.cdef [[
     typedef struct {
       uint32_t *ptr;
       size_t len;
       uint8_t success;
     } VecResult;
-    VecResult fn_name3(const uint32_t *args, size_t len);
-    void free_fn_name3(uint32_t *ptr, size_t len);
+    VecResult fn_name5(const uint32_t *args, size_t len);
+    void free_vec_u32(uint32_t *ptr, size_t len);
   ]]
 
   lib = ffi.load("E:/Documents/Training/Test/test_module/target/release/test_module.dll")
@@ -22,7 +23,7 @@ local type = "uint32_t[" .. #value .. "]"
 local input = ffi.new(type, value)
 
 -- Rust関数を呼び出す
-local result = lib.fn_name3(input, #value)
+local result = lib.fn_name5(input, #value)
 
 -- 成否判定
 if result.success == 0 then
@@ -38,7 +39,7 @@ if result.success == 0 then
   end
 
   -- メモリを解放
-  lib.free_fn_name3(result.ptr, result.len)
+  lib.free_vec_u32(result.ptr, result.len)
 else
   -- エラー表示
   if result.success == 1 then

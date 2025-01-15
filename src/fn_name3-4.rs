@@ -1,43 +1,13 @@
-use std::ffi::{CStr, CString};
+// 文字列や文字列配列の受け渡しをする関数
+
+use std::ffi::{CStr, CString}; // CStrとCStringをインポート
 use std::os::raw::c_char;
-use std::sync::{Mutex, OnceLock};
 
 // fn_name4()で返す構造体
 #[repr(C)]
 pub struct StringArrayResult {
     ptr: *const *mut c_char, // 文字列ポインタの配列
     len: usize,              // 配列の長さ
-}
-
-// fn_name5()で返す構造体
-#[repr(C)]
-pub struct VecResult {
-    ptr: *mut u32, // データのポインタ
-    len: usize,    // データの長さ
-    success: u8,   // エラー
-}
-
-// グローバル変数の初期化
-static GLOBAL_VEC: OnceLock<Mutex<Vec<u32>>> = OnceLock::new();
-
-// 受け取った値を足して返す関数
-#[no_mangle]
-pub extern "C" fn fn_name1(a: i32, b: i32) -> i32 {
-    a + b
-}
-
-// 配列を受け取り合算して返す関数
-#[no_mangle]
-pub extern "C" fn fn_name2(args: *const u32, len: usize) -> u32 {
-    // ポインタと長さからスライスを作成
-    let slice = unsafe { std::slice::from_raw_parts(args, len) };
-
-    // スライスを合算
-    let mut value = 0;
-    for arg in slice.iter() {
-        value += arg;
-    }
-    return value;
 }
 
 // 文字列を受け取り、文字列を返す
@@ -118,62 +88,6 @@ pub extern "C" fn fn_name4(
     }
 }
 
-// 配列を受け取り、グローバル変数に追加して返す関数
-#[no_mangle]
-pub extern "C" fn fn_name5(args: *const u32, len: usize) -> VecResult {
-    // 引数が不正だった場合
-    if args.is_null() || len == 0 {
-        return VecResult {
-            ptr: std::ptr::null_mut(),
-            len: 0,
-            success: 1,
-        };
-    }
-
-    // 引数のスライスを作成
-    let slice = unsafe { std::slice::from_raw_parts(args, len) };
-
-    // グローバル変数を取得(もしくは初期化)
-    let global_vec = GLOBAL_VEC.get_or_init(|| Mutex::new(Vec::new()));
-
-    // グローバルを変数ロック
-    let mut vec = match global_vec.lock() {
-        Ok(v) => v,
-        Err(_) => {
-            // ロック失敗時
-            return VecResult {
-                ptr: std::ptr::null_mut(),
-                len: 0,
-                success: 2,
-            };
-        }
-    };
-
-    // スライスをグローバル変数に追加
-    vec.extend_from_slice(slice);
-
-    // 新しい値を作成
-    let new_value: Vec<u32> = vec.iter().map(|&u| u * 5).collect();
-
-    // グローバル変数のロック解除
-    drop(vec);
-
-    // データをボックス化
-    let boxed_slice = new_value.into_boxed_slice();
-    let ptr = boxed_slice.as_ptr() as *mut u32;
-    let len = boxed_slice.len();
-
-    // データをRustの管理外に
-    std::mem::forget(boxed_slice);
-
-    // 構造体を返す
-    VecResult {
-        ptr,
-        len,
-        success: 0,
-    }
-}
-
 // 文字列を解放(メモリ解放)
 #[no_mangle]
 pub extern "C" fn free_string(ptr: *mut c_char) {
@@ -204,15 +118,5 @@ pub extern "C" fn free_string_array(array: StringArrayResult) {
     // 配列自体を解放
     unsafe {
         let _ = Box::from_raw(array.ptr as *mut *mut c_char);
-    }
-}
-
-// 配列を解放(メモリ解放)
-#[no_mangle]
-pub extern "C" fn free_vec_u32(ptr: *mut u32, len: usize) {
-    if !ptr.is_null() && len > 0 {
-        unsafe {
-            let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len));
-        }
     }
 }
