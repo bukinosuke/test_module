@@ -1,16 +1,17 @@
 if lib == nil then
-    ffi = require("ffi")
+  ffi = require("ffi")
 
-    ffi.cdef [[
-        typedef struct {
-            uint32_t *ptr;
-            size_t len;
-        } VecResult;
-        VecResult fn_name3(const uint32_t *args, size_t len);
-        void free_result(uint32_t *ptr, size_t len);
-    ]] 
+  ffi.cdef [[
+    typedef struct {
+      uint32_t *ptr;
+      size_t len;
+      bool success;
+    } VecResult;
+    VecResult fn_name3(const uint32_t *args, size_t len);
+    void free_fn_name3(uint32_t *ptr, size_t len);
+  ]]
 
-    lib = ffi.load("E:/Documents/Training/Test/test_module/target/release/test_module.dll")
+  lib = ffi.load("E:/Documents/Training/Test/test_module/target/release/test_module.dll")
 end
 
 -- 配列を作成
@@ -23,16 +24,21 @@ local input = ffi.new(type, value)
 -- Rust関数を呼び出す
 local result = lib.fn_name3(input, #value)
 
--- 返ってきた値をテーブル化
-local result_table = {}
-for i = 0, tonumber(result.len) - 1 do
+if result.success then
+  -- 返ってきた値をテーブル化
+  local result_table = {}
+  for i = 0, tonumber(result.len) - 1 do
     table.insert(result_table, result.ptr[i])
-end
+  end
 
--- テーブルを表示
-for i, value in ipairs(result_table) do
+  -- テーブルを表示
+  for i, value in ipairs(result_table) do
     print(value)
-end
+  end
 
--- メモリを解放
-lib.free_result(result.ptr, result.len)
+  -- メモリを解放
+  lib.free_fn_name3(result.ptr, result.len)
+
+else
+  print("Error: Failed to execute fn_name3")
+end
