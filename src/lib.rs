@@ -1,24 +1,26 @@
+use psd::Psd;
 use std::ffi::{CStr, CString};
+use std::fs;
 use std::os::raw::c_char;
 use std::sync::{Mutex, OnceLock};
 
-// fn_name4()で返す構造体
+// グローバル変数の初期化
+static GLOBAL_VEC: OnceLock<Mutex<Vec<u32>>> = OnceLock::new();
+
+// 文字列配列の構造体
 #[repr(C)]
 pub struct StringArrayResult {
     ptr: *const *mut c_char, // 文字列ポインタの配列
     len: usize,              // 配列の長さ
 }
 
-// fn_name5()で返す構造体
+// エラー番号付きVec<u32>のコード
 #[repr(C)]
 pub struct VecResult {
     ptr: *mut u32, // データのポインタ
     len: usize,    // データの長さ
     success: u8,   // エラー
 }
-
-// グローバル変数の初期化
-static GLOBAL_VEC: OnceLock<Mutex<Vec<u32>>> = OnceLock::new();
 
 // 受け取った値を足して返す関数
 #[no_mangle]
@@ -174,6 +176,80 @@ pub extern "C" fn fn_name5(args: *const u32, len: usize) -> VecResult {
     }
 }
 
+// PSDのパスを受け取り、レイヤー名を構造体にして返す
+#[no_mangle]
+pub extern "C" fn fn_name6(value: *const c_char) -> StringArrayResult {
+    // 入力ポインタがNULLでないか確認
+    if value.is_null() {
+        return StringArrayResult {
+            ptr: std::ptr::null(),
+            len: 0,
+        };
+    }
+
+    // C文字列をRustの&strに変換
+    let c_str = unsafe { CStr::from_ptr(value) };
+    let path = match c_str.to_str() {
+        Ok(str) => str,
+        Err(_) => {
+            return StringArrayResult {
+                ptr: std::ptr::null(),
+                len: 0,
+            };
+        }
+    };
+
+    // パスが有効かを判定
+    if path.is_empty() || !std::path::Path::new(path).exists() {
+        return StringArrayResult {
+            ptr: std::ptr::null(),
+            len: 0,
+        };
+    }
+
+    // PSDファイルを取得
+    let psd_read = match fs::read(path) {
+        Ok(p) => p,
+        Err(_) => {
+            return StringArrayResult {
+                ptr: std::ptr::null(),
+                len: 0,
+            };
+        }
+    };
+
+    // PSD型に変換
+    let psd_bytes = match Psd::from_bytes(&psd_read) {
+        Ok(psd) => psd,
+        Err(_) => {
+            return StringArrayResult {
+                ptr: std::ptr::null(),
+                len: 0,
+            };
+        }
+    };
+
+    // レイヤー名をリスト化
+    let mut layer_list = Vec::new();
+
+    // レイヤー名をCStringに変換して追加
+    for layer in psd_bytes.layers().iter() {
+        if let Ok(c_string) = CString::new(layer.name()) {
+            layer_list.push(c_string.into_raw());
+        }
+    }
+
+    // データをボックス化
+    let result_ptrs = layer_list.into_boxed_slice();
+    let len = result_ptrs.len();
+
+    // 文字列構造体を返す
+    StringArrayResult {
+        ptr: Box::into_raw(result_ptrs) as *const *mut c_char,
+        len,
+    }
+}
+
 // 文字列を解放(メモリ解放)
 #[no_mangle]
 pub extern "C" fn free_string(ptr: *mut c_char) {
@@ -207,7 +283,7 @@ pub extern "C" fn free_string_array(array: StringArrayResult) {
     }
 }
 
-// 配列を解放(メモリ解放)
+// Vec<u32>を解放(メモリ解放)
 #[no_mangle]
 pub extern "C" fn free_vec_u32(ptr: *mut u32, len: usize) {
     if !ptr.is_null() && len > 0 {

@@ -20,6 +20,7 @@ if lib == nil then
     size_t len
     );
     VecResult fn_name5(const uint32_t *args, size_t len);
+    StringArrayResult fn_name6(const char* str);
     void free_string(char* ptr);
     void free_string_array(StringArrayResult result);
     void free_vec_u32(uint32_t *ptr, size_t len);
@@ -67,7 +68,7 @@ end
 lib.free_string_array(fn_name4)
 
 
--- 配列渡し、グローバル変数を処理する
+-- モジュール関数に配列の渡し、グローバル変数の操作をする
 local value = { 1, 3, 5 }
 -- Rustに渡す値に変換
 local type = "uint32_t[" .. #value .. "]"
@@ -94,4 +95,25 @@ else
   elseif result.success == 2 then
     print("Error: GLOBAL_VECのロックに失敗しました。")
   end
+end
+
+
+-- モジュール関数にPSDのパスを渡し、レイヤー名のリストを受け取る
+local path = "D:/Downloads/春日部つむぎ立ち絵_公式_v2.0.psd"
+local result = lib.fn_name6(path)
+-- 成否判定
+if result.ptr ~= nil and result.len > 0 then
+  -- 結果をLuaのテーブルに変換
+  local layer_list = {}
+  for i = 0, tonumber(result.len) - 1 do
+    table.insert(layer_list, ffi.string(result.ptr[i]))
+  end
+  -- コンソールに出力
+  for i, value in ipairs(layer_list) do
+    print(i .. " / " .. value)
+  end
+  -- メモリ解放
+  lib.free_string_array(result)
+else
+  print("PSDファイルの読み込みに失敗しました。(" .. path .. ")")
 end
