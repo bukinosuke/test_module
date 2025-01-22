@@ -1,6 +1,8 @@
-if lib == nil then
+if ffi == nil then
   ffi = require("ffi")
+end
 
+if rust_lib == nil then
   -- Rustで作成した関数を定義
   ffi.cdef [[
     typedef struct {
@@ -21,41 +23,40 @@ if lib == nil then
     );
     VecResult fn_name5(const uint32_t *args, size_t len);
     StringArrayResult fn_name6(const char* str);
-    char* fn_name7(void);
     void free_string(char* ptr);
     void free_string_array(StringArrayResult result);
     void free_vec_u32(uint32_t *ptr, size_t len);
   ]]
 
   -- DLLの読み込み
-  lib = ffi.load("E:/Documents/Training/Test/test_module/target/release/test_module.dll")
+  rust_lib = ffi.load("E:/Documents/Training/Test/test_module/target/release/test_module.dll")
 end
 
 
 -- モジュール関数の呼び出し
-local fn_name1 = lib.fn_name1(1, 2)
+local fn_name1 = rust_lib.fn_name1(1, 2)
 print(fn_name1)
 
 
 -- モジュール関数に配列を渡す
 local values2 = ffi.new("uint32_t[5]", { 10, 20, 30, 40, 50 })
-local fn_name2 = lib.fn_name2(values2, 5)
+local fn_name2 = rust_lib.fn_name2(values2, 5)
 print(fn_name2)
 
 
 -- モジュール関数に文字列を渡し、文字列を受け取る
 local str = "知ってる？"
-local fn_name3 = lib.fn_name3(str)
+local fn_name3 = rust_lib.fn_name3(str)
 -- ポインタから文字列を取得
 local string = ffi.string(fn_name3)
 print(string)
 -- fn_name3で作成した文字列のメモリをモジュール内から解放
-lib.free_string(fn_name3)
+rust_lib.free_string(fn_name3)
 
 
 -- モジュール関数に文字列配列を渡し、文字列配列を受け取る
 local input = ffi.new("const char*[3]", { "hello", "unchi", "world" })
-local fn_name4 = lib.fn_name4(input, 3)
+local fn_name4 = rust_lib.fn_name4(input, 3)
 -- 結果をLuaのテーブルに変換
 local array = {}
 for i = 0, tonumber(fn_name4.len) - 1 do
@@ -66,7 +67,7 @@ for i, value in ipairs(array) do
   print(value)
 end
 -- fn_name4で作成した文字列配列のメモリをモジュール内から解放
-lib.free_string_array(fn_name4)
+rust_lib.free_string_array(fn_name4)
 
 
 -- モジュール関数に配列の渡し、グローバル変数の操作をする
@@ -75,7 +76,7 @@ local value = { 1, 3, 5 }
 local type = "uint32_t[" .. #value .. "]"
 local input = ffi.new(type, value)
 -- Rust関数を呼び出す
-local result = lib.fn_name5(input, #value)
+local result = rust_lib.fn_name5(input, #value)
 -- 成否判定
 if result.success == 0 then
   -- 返ってきた値をテーブル化
@@ -88,7 +89,7 @@ if result.success == 0 then
     print(value)
   end
   -- メモリを解放
-  lib.free_vec_u32(result.ptr, result.len)
+  rust_lib.free_vec_u32(result.ptr, result.len)
 else
   -- エラー表示
   if result.success == 1 then
@@ -101,7 +102,7 @@ end
 
 -- モジュール関数にPSDのパスを渡し、レイヤー名のリストを受け取る
 local path = "D:/Downloads/立ち絵きりたん.psd"
-local result = lib.fn_name6(path)
+local result = rust_lib.fn_name6(path)
 -- 成否判定
 if result.ptr ~= nil and result.len > 0 then
   -- 結果をLuaのテーブルに変換
@@ -114,16 +115,7 @@ if result.ptr ~= nil and result.len > 0 then
     print(i .. " / " .. value)
   end
   -- メモリ解放
-  lib.free_string_array(result)
+  rust_lib.free_string_array(result)
 else
   print("PSDファイルの読み込みに失敗しました。(" .. path .. ")")
 end
-
-
--- Lua → Rust → Go の順で処理を呼び、値を受け取る
-local fn_name7 = lib.fn_name7()
--- ポインタから文字列を取得
-local string = ffi.string(fn_name7)
-print(string)
--- fn_name7で作成した文字列のメモリをモジュール内から解放
-lib.free_string(fn_name7)

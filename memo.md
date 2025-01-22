@@ -1,9 +1,27 @@
 ### ffiを利用したdllの作成
-- 場合によっては`mlua`クレートの利用を検討
+- dllにdllに入れるのは非推奨
+- dllは各言語で独立させ、Luaを介してデータ交換するのがベータか
+- PythonはRustに埋め込めるが、容量が大きくロードに時間がかかるので非推奨
+
 
 #### プロジェクトの作成
 ```shell
+# Rust
 $ cargo new [] --lib
+
+# Go
+% go mod init []
+```
+
+#### ビルド
+```shell
+# Rust
+$ cargo build --release
+
+# Go
+go build -buildmode=c-shared -o [].dll [].go
+# go build -buildmode=c-shared -o 出力ファイル名.dll 元となるファイル.go
+# 例) go build -buildmode=c-shared -o test_module_go.dll test_module_go.go
 ```
 
 #### Cargo.tomlに追記
