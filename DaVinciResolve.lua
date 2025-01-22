@@ -21,6 +21,7 @@ if lib == nil then
     );
     VecResult fn_name5(const uint32_t *args, size_t len);
     StringArrayResult fn_name6(const char* str);
+    char* fn_name7(void);
     void free_string(char* ptr);
     void free_string_array(StringArrayResult result);
     void free_vec_u32(uint32_t *ptr, size_t len);
@@ -99,7 +100,7 @@ end
 
 
 -- モジュール関数にPSDのパスを渡し、レイヤー名のリストを受け取る
-local path = "D:/Downloads/春日部つむぎ立ち絵_公式_v2.0.psd"
+local path = "D:/Downloads/立ち絵きりたん.psd"
 local result = lib.fn_name6(path)
 -- 成否判定
 if result.ptr ~= nil and result.len > 0 then
@@ -117,3 +118,12 @@ if result.ptr ~= nil and result.len > 0 then
 else
   print("PSDファイルの読み込みに失敗しました。(" .. path .. ")")
 end
+
+
+-- Lua → Rust → Go の順で処理を呼び、値を受け取る
+local fn_name7 = lib.fn_name7()
+-- ポインタから文字列を取得
+local string = ffi.string(fn_name7)
+print(string)
+-- fn_name7で作成した文字列のメモリをモジュール内から解放
+lib.free_string(fn_name7)
