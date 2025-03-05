@@ -1,0 +1,101 @@
+package main
+
+/*
+#include <stdlib.h>
+
+typedef struct {
+    int* r;
+    int* g;
+    int* b;
+    int* a;
+    int x;
+    int y;
+} SimpleRGBA;
+*/
+import "C"
+import (
+	"unsafe"
+)
+
+type SimpleRGBA struct {
+	r []int
+	g []int
+	b []int
+	a []int
+	x int
+	y int
+}
+
+//export goFunction
+func goFunction(input *C.char) *C.char {
+	// C互換の文字列をGo文字列に変換
+	rust_str := C.GoString(input)
+
+	// 文字列を加工
+	str := rust_str + "知らないよｗｗｗ"
+
+	// 加工後の文字列をC互換の文字列に変換
+	return C.CString(str) // メモリ確保
+}
+
+//export goFree
+func goFree(ptr *C.char) {
+	// メモリ解放
+	C.free(unsafe.Pointer(ptr))
+}
+
+//export CreateSimpleRGBA
+func CreateSimpleRGBA() *C.SimpleRGBA {
+	length := 3
+	goR := []int{255, 128, 64}
+	goG := []int{0, 128, 192}
+	goB := []int{0, 64, 128}
+	goA := []int{255, 255, 255}
+	x := 10
+	y := 20
+
+	// Cメモリ確保
+	rPtr := (*C.int)(C.malloc(C.size_t(length) * C.size_t(unsafe.Sizeof(C.int(0)))))
+	gPtr := (*C.int)(C.malloc(C.size_t(length) * C.size_t(unsafe.Sizeof(C.int(0)))))
+	bPtr := (*C.int)(C.malloc(C.size_t(length) * C.size_t(unsafe.Sizeof(C.int(0)))))
+	aPtr := (*C.int)(C.malloc(C.size_t(length) * C.size_t(unsafe.Sizeof(C.int(0)))))
+
+	// Goスライスへ変換
+	rSlice := (*[1 << 28]C.int)(unsafe.Pointer(rPtr))[:length:length]
+	gSlice := (*[1 << 28]C.int)(unsafe.Pointer(gPtr))[:length:length]
+	bSlice := (*[1 << 28]C.int)(unsafe.Pointer(bPtr))[:length:length]
+	aSlice := (*[1 << 28]C.int)(unsafe.Pointer(aPtr))[:length:length]
+
+	// GoデータをCメモリへコピー
+	for i := 0; i < length; i++ {
+		rSlice[i] = C.int(goR[i])
+		gSlice[i] = C.int(goG[i])
+		bSlice[i] = C.int(goB[i])
+		aSlice[i] = C.int(goA[i])
+	}
+
+	// SimpleRGBA構造体を確保
+	rgba := (*C.SimpleRGBA)(C.malloc(C.size_t(unsafe.Sizeof(C.SimpleRGBA{}))))
+	rgba.r = rPtr
+	rgba.g = gPtr
+	rgba.b = bPtr
+	rgba.a = aPtr
+	rgba.x = C.int(x)
+	rgba.y = C.int(y)
+
+	return rgba
+}
+
+//export FreeSimpleRGBA
+func FreeSimpleRGBA(ptr *C.SimpleRGBA) {
+	if ptr == nil {
+		return
+	}
+	C.free(unsafe.Pointer(ptr.r))
+	C.free(unsafe.Pointer(ptr.g))
+	C.free(unsafe.Pointer(ptr.b))
+	C.free(unsafe.Pointer(ptr.a))
+	C.free(unsafe.Pointer(ptr))
+}
+
+func main() {}

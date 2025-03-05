@@ -20,7 +20,31 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 
 
 #line 3 "test_module_go.go"
- #include <stdlib.h>
+
+// Cとの連携用ヘッダー宣言
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+
+typedef struct {
+    uint8_t* r;    // 赤成分配列
+    int r_len;     // 赤成分の要素数
+    uint8_t* g;    // 緑成分配列
+    int g_len;     // 緑成分の要素数
+    uint8_t* b;    // 青成分配列
+    int b_len;     // 青成分の要素数
+    uint8_t* a;    // アルファ成分配列
+    int a_len;     // アルファ成分の要素数
+    int len;       // 各配列の共通の長さ
+    char* name;    // 文字列（例：画像名）
+    int x;         // X座標（例）
+    int y;         // Y座標（例）
+} SimpleRGBA_C;
+
+typedef struct {
+    SimpleRGBA_C* data; // SimpleRGBA_C構造体の配列
+    int count;          // 要素数
+} RGBAs;
 
 #line 1 "cgo-generated-wrapper"
 
@@ -78,8 +102,8 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-extern __declspec(dllexport) char* goFunction(char* input);
-extern __declspec(dllexport) void goFree(char* ptr);
+extern __declspec(dllexport) RGBAs* GetRGBAs(char* input);
+extern __declspec(dllexport) void FreeRGBAs(RGBAs* rgbasPtr);
 
 #ifdef __cplusplus
 }

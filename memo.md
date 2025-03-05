@@ -10,7 +10,7 @@
 $ cargo new [] --lib
 
 # Go
-% go mod init []
+$ go mod init []
 ```
 
 #### ビルド
@@ -19,7 +19,7 @@ $ cargo new [] --lib
 $ cargo build --release
 
 # Go
-go build -buildmode=c-shared -o [].dll [].go
+$ go build -buildmode=c-shared -o [].dll [].go
 # go build -buildmode=c-shared -o 出力ファイル名.dll 元となるファイル.go
 # 例) go build -buildmode=c-shared -o test_module_go.dll test_module_go.go
 ```
